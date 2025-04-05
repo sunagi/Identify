@@ -4,6 +4,28 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import * as ethers from "ethers"
 import { toast } from "@/components/ui/use-toast"
 
+// Compatibility layer for ethers v5 and v6
+// These are used in several places throughout the application
+const ethersUtils = {
+  formatEther: (value: any): string => {
+    try {
+      // Try ethers v6 format
+      if (typeof ethers.formatEther === "function") {
+        return ethers.formatEther(value)
+      }
+      // Fall back to ethers v5 format
+      if (ethers.utils && typeof ethers.utils.formatEther === "function") {
+        return ethers.utils.formatEther(value)
+      }
+      // Manual fallback (1 ether = 10^18 wei)
+      return (Number(value) / 1e18).toString()
+    } catch (error) {
+      console.error("Error formatting ether:", error)
+      return "0"
+    }
+  }
+}
+
 // Add a type declaration for window.ethereum at the top of the file
 declare global {
   interface Window {
@@ -45,23 +67,7 @@ interface WalletProviderProps {
 }
 
 // Helper function to format ether safely
-const formatEther = (value: any): string => {
-  try {
-    // Try ethers v6 format
-    if (typeof ethers.formatEther === "function") {
-      return ethers.formatEther(value)
-    }
-    // Fall back to ethers v5 format
-    if (ethers.utils && typeof ethers.utils.formatEther === "function") {
-      return ethers.utils.formatEther(value)
-    }
-    // Manual fallback (1 ether = 10^18 wei)
-    return (Number(value) / 1e18).toString()
-  } catch (error) {
-    console.error("Error formatting ether:", error)
-    return "0"
-  }
-}
+const formatEther = ethersUtils.formatEther;
 
 export const WalletProvider = ({ children }: WalletProviderProps) => {
   // Update the provider state type to any for flexibility

@@ -15,6 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { toast } from "@/components/ui/use-toast"
 import { useWallet } from "@/hooks/use-wallet"
 import { sendHyperlaneMessage } from "@/lib/hyperlane"
+import { formatUnits, formatEther, parseUnits, parseEther, MaxUint256 } from "@/lib/ethers-utils"
 
 interface TokenSwapProps {
   isVerified: boolean
@@ -148,82 +149,6 @@ const ERC20_ABI = [
   "function approve(address spender, uint amount) returns (bool)",
   "function transfer(address to, uint amount) returns (bool)",
 ]
-
-// Helper function to format units safely
-const formatUnits = (value: any, decimals: number): string => {
-  try {
-    // Try ethers v6 format
-    if (typeof ethers.formatUnits === "function") {
-      return ethers.formatUnits(value, decimals)
-    }
-    // Fall back to ethers v5 format
-    if (ethers.utils && typeof ethers.utils.formatUnits === "function") {
-      return ethers.utils.formatUnits(value, decimals)
-    }
-    // Manual fallback
-    return (Number(value) / Math.pow(10, decimals)).toString()
-  } catch (error) {
-    console.error("Error formatting units:", error)
-    return "0"
-  }
-}
-
-// Helper function to format ether safely
-const formatEther = (value: any): string => {
-  try {
-    // Try ethers v6 format
-    if (typeof ethers.formatEther === "function") {
-      return ethers.formatEther(value)
-    }
-    // Fall back to ethers v5 format
-    if (ethers.utils && typeof ethers.utils.formatEther === "function") {
-      return ethers.utils.formatEther(value)
-    }
-    // Manual fallback
-    return (Number(value) / 1e18).toString()
-  } catch (error) {
-    console.error("Error formatting ether:", error)
-    return "0"
-  }
-}
-
-// Helper function to parse units safely
-const parseUnits = (value: string, decimals: number): any => {
-  try {
-    // Try ethers v6 format
-    if (typeof ethers.parseUnits === "function") {
-      return ethers.parseUnits(value, decimals)
-    }
-    // Fall back to ethers v5 format
-    if (ethers.utils && typeof ethers.utils.parseUnits === "function") {
-      return ethers.utils.parseUnits(value, decimals)
-    }
-    // Manual fallback
-    return (Number(value) * Math.pow(10, decimals)).toString()
-  } catch (error) {
-    console.error("Error parsing units:", error)
-    return "0"
-  }
-}
-
-// Helper function to parse ether safely
-const parseEther = (value: string): any => {
-  try {
-    // Try ethers v6 format
-    if (typeof ethers.parseEther === "function") {
-      return ethers.parseEther(value)
-    }
-    // Fall back to ethers v5 format
-    if (ethers.utils && typeof ethers.utils.parseEther === "function") {
-      return ethers.utils.parseEther(value)
-    }
-    // Manual fallback
-    return (Number(value) * 1e18).toString()
-  } catch (error) {
-    console.error("Error parsing ether:", error)
-    return "0"
-  }
-}
 
 export function TokenSwap({ isVerified, className }: TokenSwapProps) {
   const { address, provider, signer, chainId, ensName } = useWallet()
@@ -406,7 +331,7 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
       toast({
         title: "Using estimated values",
         description: "Using simulated values for demonstration",
-        variant: "default",
+        variant: "destructive",
       })
     }
   }, [selectedFromToken, selectedToToken, fromAmount, useFusionPlus])
@@ -426,62 +351,42 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
     return () => debouncedGetQuote.cancel()
   }, [debouncedGetQuote])
 
-  // Check token allowance
+  // Check token allowance and approve if needed
   const checkAllowance = async () => {
-    if (!selectedFromToken || !selectedToToken || !address || !provider || selectedFromToken.symbol === "ETH") {
-      return true // ETH doesn't need approval
-    }
+    if (!provider || !signer || !address || !selectedFromToken || !swapQuote) return false
 
     try {
-      // Create contract instance
-      const contract = new ethers.Contract(selectedFromToken.address, ERC20_ABI, provider)
+      if (selectedFromToken.symbol === "ETH") {
+        return true // Native ETH doesn't need approval
+      }
 
-      // Check allowance
-      const spender = "0x1111111254fb6c44bAC0beD2854e76F90643097d" // 1inch router
-      const allowance = await contract.allowance(address, spender)
-      const amount = parseUnits(fromAmount, selectedFromToken.decimals)
+      const tokenContract = new ethers.Contract(selectedFromToken.address, ERC20_ABI, provider)
+      const currentAllowance = await tokenContract.allowance(address, "0xDEF1C0ded9bec7F1a1670819833240f027b25EfF") // 0x Exchange Proxy
+      const amountToApprove = parseUnits(fromAmount, selectedFromToken.decimals)
 
-      return allowance.gte(amount)
-    } catch (error) {
-      console.error("Error checking allowance:", error)
-      return false
-    }
-  }
+      if (currentAllowance.lt(amountToApprove)) {
+        setIsApproving(true)
+        // Use spender as 0x Exchange Proxy
+        const tokenWithSigner = tokenContract.connect(signer)
+        const tx = await tokenWithSigner.approve(
+          "0xDEF1C0ded9bec7F1a1670819833240f027b25EfF",
+          MaxUint256() // Using MaxUint256 from the utils
+        )
+        await tx.wait()
+        setIsApproving(false)
+        return true
+      }
 
-  // Approve token
-  const approveToken = async () => {
-    if (!selectedFromToken || !signer) return false
-
-    setIsApproving(true)
-
-    try {
-      // Create contract instance
-      const contract = new ethers.Contract(selectedFromToken.address, ERC20_ABI, signer)
-
-      // Approve 1inch router
-      const spender = "0x1111111254fb6c44bAC0beD2854e76F90643097d" // 1inch router
-      const amount =
-        ethers.MaxUint256 || "115792089237316195423570985008687907853269984665640564039457584007913129639935"
-
-      const tx = await contract.approve(spender, amount)
-      await tx.wait()
-
-      toast({
-        title: "Approval Successful",
-        description: `Successfully approved ${selectedFromToken.symbol}`,
-        variant: "success",
-      })
       return true
     } catch (error) {
-      console.error("Approval error:", error)
+      console.error("Error checking allowance:", error)
+      setIsApproving(false)
       toast({
         title: "Approval Failed",
-        description: "There was an error approving the token",
+        description: "There was an error approving your tokens. Please try again.",
         variant: "destructive",
       })
       return false
-    } finally {
-      setIsApproving(false)
     }
   }
 
@@ -565,6 +470,43 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
         setFromAmount(toAmount)
         setToAmount(fromAmount)
       }
+    }
+  }
+
+  // Approve token
+  const approveToken = async () => {
+    if (!selectedFromToken || !signer) return false
+
+    setIsApproving(true)
+
+    try {
+      // Create contract instance
+      const contract = new ethers.Contract(selectedFromToken.address, ERC20_ABI, signer)
+
+      // Approve 1inch router
+      const spender = "0x1111111254fb6c44bAC0beD2854e76F90643097d" // 1inch router
+      const amount =
+        ethers.MaxUint256 || "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+
+      const tx = await contract.approve(spender, amount)
+      await tx.wait()
+
+      toast({
+        title: "Approval Successful",
+        description: `Successfully approved ${selectedFromToken.symbol}`,
+        variant: "success",
+      })
+      return true
+    } catch (error) {
+      console.error("Approval error:", error)
+      toast({
+        title: "Approval Failed",
+        description: "There was an error approving the token",
+        variant: "destructive",
+      })
+      return false
+    } finally {
+      setIsApproving(false)
     }
   }
 
@@ -836,7 +778,7 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
 
           {!isVerified && (
             <Alert
-              variant="warning"
+              variant="destructive"
               className="bg-gradient-to-r from-yellow-50 to-amber-50 text-yellow-800 border-yellow-200 dark:from-yellow-950/20 dark:to-amber-950/20 dark:text-yellow-400 dark:border-yellow-900/30 rounded-xl"
             >
               <AlertCircle className="h-4 w-4" />
