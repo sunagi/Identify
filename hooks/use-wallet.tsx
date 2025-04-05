@@ -1,24 +1,15 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
-import * as ethers from "ethers"
+import { ethers } from "ethers"
 import { toast } from "@/components/ui/use-toast"
 
-// Compatibility layer for ethers v5 and v6
+// Compatibility layer for ethers v5
 // These are used in several places throughout the application
 const ethersUtils = {
   formatEther: (value: any): string => {
     try {
-      // Try ethers v6 format
-      if (typeof ethers.formatEther === "function") {
-        return ethers.formatEther(value)
-      }
-      // Fall back to ethers v5 format
-      if (ethers.utils && typeof ethers.utils.formatEther === "function") {
-        return ethers.utils.formatEther(value)
-      }
-      // Manual fallback (1 ether = 10^18 wei)
-      return (Number(value) / 1e18).toString()
+      return ethers.utils.formatEther(value)
     } catch (error) {
       console.error("Error formatting ether:", error)
       return "0"
@@ -231,41 +222,16 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
   // Helper function to create a provider
   const createProvider = async (ethereum: any) => {
     try {
-      // Try ethers v6 approach
-      if (typeof ethers.BrowserProvider === "function") {
-        return new ethers.BrowserProvider(ethereum)
+      // Use ethers v5 approach
+      if (ethereum) {
+        return new ethers.providers.Web3Provider(ethereum);
       }
-
-      // Try ethers v5 approach
-      if (ethers.providers && typeof ethers.providers.Web3Provider === "function") {
-        return new ethers.providers.Web3Provider(ethereum)
-      }
-
-      // Fallback to a basic provider
-      return {
-        getNetwork: async () => ({
-          chainId: Number.parseInt(await ethereum.request({ method: "eth_chainId" }), 16),
-        }),
-        getBalance: async (address: string) =>
-          ethereum.request({ method: "eth_getBalance", params: [address, "latest"] }),
-        lookupAddress: async () => null,
-        getSigner: () => ({
-          getAddress: async () => {
-            const accounts = await ethereum.request({ method: "eth_accounts" })
-            return accounts[0]
-          },
-          signMessage: async (message: string) =>
-            ethereum.request({
-              method: "personal_sign",
-              params: [message, await this.getAddress()],
-            }),
-        }),
-      }
+      return null;
     } catch (error) {
-      console.error("Failed to create provider:", error)
-      return null
+      console.error("Failed to create provider:", error);
+      return null;
     }
-  }
+  };
 
   // Update the connect function to properly handle provider initialization
   const connect = async (providerType: "metamask" | "walletconnect" | "coinbase") => {

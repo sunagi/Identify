@@ -26,6 +26,12 @@ const SelfQRcodeWrapper = dynamic(
   { ssr: false }
 )
 
+// SelfとWorldcoinのコンポーネントもクライアントサイドでのみレンダリング
+const IDKitWidgetWrapper = dynamic(
+  () => Promise.resolve(IDKitWidget),
+  { ssr: false }
+)
+
 export default function Dashboard() {
   // Add a state to check if MetaMask is installed
   const [isMetaMaskInstalled, setIsMetaMaskInstalled] = useState(true)
@@ -337,7 +343,7 @@ export default function Dashboard() {
                     </CardContent>
                     <CardFooter>
                       {!isVerifiedWorldID && (
-                        <IDKitWidget
+                        <IDKitWidgetWrapper
                           action={action}
                           app_id={app_id}
                           onSuccess={onSuccess}
@@ -363,7 +369,7 @@ export default function Dashboard() {
                                   : "Verify with World ID"}
                             </Button>
                           )}
-                        </IDKitWidget>
+                        </IDKitWidgetWrapper>
                       )}
                       {isVerifiedWorldID && (
                         <Button

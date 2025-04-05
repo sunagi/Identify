@@ -1,4 +1,4 @@
-import * as ethers from 'ethers';
+import { utils, constants } from 'ethers';
 
 /**
  * Interface to help with type checking for ethers v5 utils
@@ -30,16 +30,7 @@ function hasV5Constants(ethers: any): ethers is { constants: EthersV5Constants }
 // Helper function to format units safely
 export const formatUnits = (value: any, decimals: number): string => {
   try {
-    // Try ethers v6 format
-    if (typeof (ethers as any).formatUnits === "function") {
-      return (ethers as any).formatUnits(value, decimals)
-    }
-    // Fall back to ethers v5 format
-    if (hasV5Utils(ethers) && typeof ethers.utils.formatUnits === "function") {
-      return ethers.utils.formatUnits(value, decimals)
-    }
-    // Manual fallback
-    return (Number(value) / Math.pow(10, decimals)).toString()
+    return utils.formatUnits(value, decimals);
   } catch (error) {
     console.error("Error formatting units:", error)
     return "0"
@@ -49,16 +40,7 @@ export const formatUnits = (value: any, decimals: number): string => {
 // Helper function to format ether safely
 export const formatEther = (value: any): string => {
   try {
-    // Try ethers v6 format
-    if (typeof (ethers as any).formatEther === "function") {
-      return (ethers as any).formatEther(value)
-    }
-    // Fall back to ethers v5 format
-    if (hasV5Utils(ethers) && typeof ethers.utils.formatEther === "function") {
-      return ethers.utils.formatEther(value)
-    }
-    // Manual fallback
-    return (Number(value) / 1e18).toString()
+    return utils.formatEther(value);
   } catch (error) {
     console.error("Error formatting ether:", error)
     return "0"
@@ -68,16 +50,7 @@ export const formatEther = (value: any): string => {
 // Helper function to parse units safely
 export const parseUnits = (value: string, decimals: number): any => {
   try {
-    // Try ethers v6 format
-    if (typeof (ethers as any).parseUnits === "function") {
-      return (ethers as any).parseUnits(value, decimals)
-    }
-    // Fall back to ethers v5 format
-    if (hasV5Utils(ethers) && typeof ethers.utils.parseUnits === "function") {
-      return ethers.utils.parseUnits(value, decimals)
-    }
-    // Manual fallback
-    return (Number(value) * Math.pow(10, decimals)).toString()
+    return utils.parseUnits(value, decimals);
   } catch (error) {
     console.error("Error parsing units:", error)
     return "0"
@@ -87,16 +60,7 @@ export const parseUnits = (value: string, decimals: number): any => {
 // Helper function to parse ether safely
 export const parseEther = (value: string): any => {
   try {
-    // Try ethers v6 format
-    if (typeof (ethers as any).parseEther === "function") {
-      return (ethers as any).parseEther(value)
-    }
-    // Fall back to ethers v5 format
-    if (hasV5Utils(ethers) && typeof ethers.utils.parseEther === "function") {
-      return ethers.utils.parseEther(value)
-    }
-    // Manual fallback
-    return (Number(value) * 1e18).toString()
+    return utils.parseEther(value);
   } catch (error) {
     console.error("Error parsing ether:", error)
     return "0"
@@ -105,14 +69,5 @@ export const parseEther = (value: string): any => {
 
 // Constants
 export const MaxUint256 = () => {
-  // Try ethers v6 constants
-  if ((ethers as any).MaxUint256) {
-    return (ethers as any).MaxUint256
-  }
-  // Try ethers v5 constants
-  if (hasV5Constants(ethers) && ethers.constants.MaxUint256) {
-    return ethers.constants.MaxUint256
-  }
-  // Fallback: manually define MaxUint256
-  return '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
+  return constants.MaxUint256;
 } 
