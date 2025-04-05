@@ -1,26 +1,29 @@
-import type React from "react"
-import "@/app/globals.css"
-import type { Metadata } from "next"
-import { Providers } from "@/app/providers"
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import { Providers } from "./providers";
+import { Toaster } from "@/components/ui/toaster";
+
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Web3 Dashboard",
-  description: "A secure token swap application with verification",
-    generator: 'v0.dev'
-}
+  title: "Identifi - Secure Crypto Identity",
+  description: "Securely verify your identity for crypto transactions",
+};
 
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode
-}) {
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body>
+    <html lang="en">
+      <body className={inter.className}>
         <Providers>{children}</Providers>
+        <Toaster />
       </body>
     </html>
-  )
+  );
 }
 
 

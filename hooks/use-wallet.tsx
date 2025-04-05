@@ -296,7 +296,7 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
             // Use a public provider for ENS resolution
             const mainnetProvider = ethers.getDefaultProvider
               ? ethers.getDefaultProvider("mainnet")
-              : new ethers.JsonRpcProvider("https://eth-mainnet.g.alchemy.com/v2/demo")
+              : new ethers.providers.JsonRpcProvider("https://eth-mainnet.g.alchemy.com/v2/demo")
 
             const name = await mainnetProvider.lookupAddress?.(accounts[0])
             setEnsName(name)

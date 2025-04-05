@@ -41,23 +41,41 @@ export default function Dashboard() {
   const { setOpen } = useIDKit();
   
   // WorldIDの検証成功時の処理をシンプルに実装
-  const onSuccess = (result: ISuccessResult) => {
-    console.log("WorldID verification succeeded:", result);
-    setIsVerifiedWorldID(true);
-    setIsLoading(false);
-    setActiveAuth(null);
-    
-    toast({
-      title: "検証成功",
-      description: "World IDでの認証が完了しました",
-    });
+  const onSuccess = async (result: ISuccessResult) => {
+    try {
+      console.log("WorldID verification succeeded:", result);
+      // verify関数を呼び出して検証
+      const data = await verify(result);
+      if (data.success) {
+        setIsVerifiedWorldID(true);
+        setIsLoading(false);
+        setActiveAuth(null);
+        
+        toast({
+          title: "検証成功",
+          description: "World IDでの認証が完了しました",
+        });
+      } else {
+        throw new Error(`検証に失敗しました: ${data.detail || "不明なエラー"}`);
+      }
+    } catch (error: any) {
+      console.error("WorldID検証エラー:", error);
+      setIsLoading(false);
+      setActiveAuth(null);
+      
+      toast({
+        title: "検証失敗",
+        description: error.message || "World IDでの認証に失敗しました",
+        variant: "destructive",
+      });
+    }
   };
 
   // WorldIDの検証処理
   const handleProof = async (result: ISuccessResult): Promise<void> => {
     console.log("Proof received from IDKit:", result);
-    // 実際の検証処理はスキップして、成功したとみなす
-    // 戻り値は必要ありません
+    // IDKitの検証がここで行われるため、
+    // 実際の処理はonSuccessで行います
   };
 
   // Check if MetaMask is installed

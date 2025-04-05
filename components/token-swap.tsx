@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { ArrowLeftRight, ChevronDown, ExternalLink, AlertCircle, Loader2, Zap, Sparkles } from "lucide-react"
-import * as ethers from "ethers"
+import { Contract } from "ethers"
 import { debounce } from "lodash"
 
 import { Button } from "@/components/ui/button"
@@ -206,7 +206,7 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
         } else {
           try {
             // Create contract instance
-            const contract = new ethers.Contract(selectedFromToken.address, ERC20_ABI, provider)
+            const contract = new Contract(selectedFromToken.address, ERC20_ABI, provider)
 
             // Get token balance
             const balance = await contract.balanceOf(address)
@@ -237,7 +237,7 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
         } else {
           try {
             // Create contract instance
-            const contract = new ethers.Contract(selectedToToken.address, ERC20_ABI, provider)
+            const contract = new Contract(selectedToToken.address, ERC20_ABI, provider)
 
             // Get token balance
             const balance = await contract.balanceOf(address)
@@ -360,7 +360,7 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
         return true // Native ETH doesn't need approval
       }
 
-      const tokenContract = new ethers.Contract(selectedFromToken.address, ERC20_ABI, provider)
+      const tokenContract = new Contract(selectedFromToken.address, ERC20_ABI, provider)
       const currentAllowance = await tokenContract.allowance(address, "0xDEF1C0ded9bec7F1a1670819833240f027b25EfF") // 0x Exchange Proxy
       const amountToApprove = parseUnits(fromAmount, selectedFromToken.decimals)
 
@@ -481,12 +481,12 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
 
     try {
       // Create contract instance
-      const contract = new ethers.Contract(selectedFromToken.address, ERC20_ABI, signer)
+      const contract = new Contract(selectedFromToken.address, ERC20_ABI, signer)
 
       // Approve 1inch router
       const spender = "0x1111111254fb6c44bAC0beD2854e76F90643097d" // 1inch router
       const amount =
-        ethers.MaxUint256 || "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+        MaxUint256 || "115792089237316195423570985008687907853269984665640564039457584007913129639935"
 
       const tx = await contract.approve(spender, amount)
       await tx.wait()
