@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react"
 import { Check, Globe, Lock, Shield, Wallet, Sparkles, Loader2, User } from "lucide-react"
 import { v4 as uuidv4 } from 'uuid'
-import SelfQRcodeWrapper, { SelfAppBuilder } from '@selfxyz/qrcode'
-import { ethers } from 'ethers/lib/utils'
+import dynamic from 'next/dynamic'
+import { SelfAppBuilder } from '@selfxyz/qrcode'
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -17,6 +17,12 @@ import { WalletConnect } from "@/components/wallet-connect"
 import { AssetList } from "@/components/asset-list"
 import { TokenSwap } from "@/components/token-swap"
 import { CrossChainMessages } from "@/components/cross-chain-messages"
+
+// クライアントサイドでのみレンダリングされるようにDynamicインポートを使用
+const SelfQRcodeWrapper = dynamic(
+  () => import('@selfxyz/qrcode').then((mod) => mod.default),
+  { ssr: false }
+)
 
 export default function Dashboard() {
   // Add a state to check if MetaMask is installed
