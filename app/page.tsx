@@ -4,7 +4,6 @@ import { useEffect, useState } from "react"
 import { Check, Globe, Lock, Shield, Wallet, Sparkles, Loader2, User } from "lucide-react"
 import { v4 as uuidv4 } from 'uuid'
 import SelfQRcodeWrapper, { SelfAppBuilder } from '@selfxyz/qrcode'
-import { formatUnits, formatEther, parseUnits, parseEther, MaxUint256 } from "@/lib/ethers-utils"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
