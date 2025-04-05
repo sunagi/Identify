@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Check, Globe, Lock, Shield, Wallet, Sparkles, Loader2, User } from "lucide-react"
 import { v4 as uuidv4 } from 'uuid'
 import SelfQRcodeWrapper, { SelfAppBuilder } from '@selfxyz/qrcode'
+import { ethers } from 'ethers/lib/utils'
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -149,6 +150,12 @@ export default function Dashboard() {
       })
     }, 2000)
   }
+
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      // documentを使用するコード
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-purple-50/30 to-cyan-50/30 dark:from-black dark:via-purple-950/5 dark:to-cyan-950/5">
