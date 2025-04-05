@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Wallet, ArrowUpRight, ArrowDownRight, RefreshCw, Loader2, Sparkles } from "lucide-react"
-import { utils, Contract } from "ethers"
+import * as ethers from "ethers"
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -11,7 +11,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "@/components/ui/use-toast"
 import { useWallet } from "@/hooks/use-wallet"
 import { Badge } from "@/components/ui/badge"
-import { formatUnits, formatEther } from "@/lib/ethers-utils"
 
 interface AssetListProps {
   isVerified: boolean
@@ -42,6 +41,44 @@ const ERC20_ABI = [
   "function symbol() view returns (string)",
   "function name() view returns (string)",
 ]
+
+// Helper function to format units safely
+const formatUnits = (value: any, decimals: number): string => {
+  try {
+    // Try ethers v6 format
+    if (typeof ethers.formatUnits === "function") {
+      return ethers.formatUnits(value, decimals)
+    }
+    // Fall back to ethers v5 format
+    if (ethers.utils && typeof ethers.utils.formatUnits === "function") {
+      return ethers.utils.formatUnits(value, decimals)
+    }
+    // Manual fallback
+    return (Number(value) / Math.pow(10, decimals)).toString()
+  } catch (error) {
+    console.error("Error formatting units:", error)
+    return "0"
+  }
+}
+
+// Helper function to format ether safely
+const formatEther = (value: any): string => {
+  try {
+    // Try ethers v6 format
+    if (typeof ethers.formatEther === "function") {
+      return ethers.formatEther(value)
+    }
+    // Fall back to ethers v5 format
+    if (ethers.utils && typeof ethers.utils.formatEther === "function") {
+      return ethers.utils.formatEther(value)
+    }
+    // Manual fallback (1 ether = 10^18 wei)
+    return (Number(value) / 1e18).toString()
+  } catch (error) {
+    console.error("Error formatting ether:", error)
+    return "0"
+  }
+}
 
 // Simulated price data to avoid API calls
 const SIMULATED_PRICES = {
@@ -232,7 +269,7 @@ async function fetchEthereumAssetsOnChain(networks: NetworkAssets[], provider: a
     // Try to fetch USDC balance
     try {
       const usdcAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
-      const usdcContract = new Contract(usdcAddress, ERC20_ABI, provider)
+      const usdcContract = new ethers.Contract(usdcAddress, ERC20_ABI, provider)
 
       const usdcBalance = await usdcContract.balanceOf(address)
       const usdcBalanceFormatted = formatUnits(usdcBalance, 6)
@@ -274,7 +311,7 @@ async function fetchEthereumAssetsOnChain(networks: NetworkAssets[], provider: a
     // Try to fetch LINK balance
     try {
       const linkAddress = "0x514910771AF9Ca656af840dff83E8264EcF986CA"
-      const linkContract = new Contract(linkAddress, ERC20_ABI, provider)
+      const linkContract = new ethers.Contract(linkAddress, ERC20_ABI, provider)
 
       const linkBalance = await linkContract.balanceOf(address)
       const linkBalanceFormatted = formatUnits(linkBalance, 18)

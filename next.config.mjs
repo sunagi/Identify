@@ -22,13 +22,6 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  transpilePackages: [
-    '@worldcoin/idkit',
-    '@worldcoin/idkit-core',
-    '@selfxyz/qrcode',
-    '@selfxyz/core',
-    'react-shadow',
-  ],
   experimental: {
     webpackBuildWorker: true,
     parallelServerBuildTraces: true,
