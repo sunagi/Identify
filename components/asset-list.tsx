@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Wallet, ArrowUpRight, ArrowDownRight, RefreshCw, Loader2 } from "lucide-react"
+import { Wallet, ArrowUpRight, ArrowDownRight, RefreshCw, Loader2, Sparkles } from "lucide-react"
 import * as ethers from "ethers"
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "@/components/ui/use-toast"
 import { useWallet } from "@/hooks/use-wallet"
+import { Badge } from "@/components/ui/badge"
 
 interface AssetListProps {
   isVerified: boolean
@@ -79,308 +80,553 @@ const formatEther = (value: any): string => {
   }
 }
 
-// Nodit API client (enhanced)
+// Simulated price data to avoid API calls
+const SIMULATED_PRICES = {
+  ethereum: {
+    usd: 1850,
+    usd_24h_change: 2.5,
+  },
+  "matic-network": {
+    usd: 0.65,
+    usd_24h_change: 1.2,
+  },
+  celo: {
+    usd: 0.48,
+    usd_24h_change: -0.8,
+  },
+  "usd-coin": {
+    usd: 1.0,
+    usd_24h_change: 0.01,
+  },
+  chainlink: {
+    usd: 12.75,
+    usd_24h_change: 3.2,
+  },
+  bitcoin: {
+    usd: 52000,
+    usd_24h_change: 1.5,
+  },
+  rootstock: {
+    usd: 52000,
+    usd_24h_change: 1.5,
+  },
+  "rif-token": {
+    usd: 0.12,
+    usd_24h_change: -1.2,
+  },
+}
+
+// Nodit API client with simulated data
 const NoditClient = {
   async getAssets(address: string, provider: any, ensName: string | null): Promise<NetworkAssets[]> {
     try {
-      // In a real implementation, this would be an actual API call to Nodit
-      // For now, we'll simulate the API response with on-chain data
-
-      // Fetch token prices from CoinGecko with more tokens
-      const priceResponse = await fetch(
-        "https://api.coingecko.com/api/v3/simple/price?ids=ethereum,matic-network,celo,usd-coin,chainlink,bitcoin,rootstock,rif-token&vs_currencies=usd&include_24hr_change=true",
-        {
-          headers: {
-            Accept: "application/json",
-            "Cache-Control": "no-cache",
-          },
-        },
-      )
-
-      if (!priceResponse.ok) {
-        throw new Error("Failed to fetch token prices")
-      }
-
-      const prices = await priceResponse.json()
-
-      // Define tokens to check
+      // Initialize networks structure
       const networks: NetworkAssets[] = [
         {
           network: "Ethereum",
           chainId: 1,
-          totalValue: "0.00", // Will be calculated
-          assets: [
-            {
-              symbol: "ETH",
-              name: "Ethereum",
-              balance: "0.00", // Will be fetched
-              value: "0.00", // Will be calculated
-              change24h: prices["ethereum"]?.usd_24h_change || 0,
-              logo: "https://cryptologos.cc/logos/ethereum-eth-logo.png?v=025",
-              address: "0x0000000000000000000000000000000000000000", // Native token
-              decimals: 18,
-            },
-            {
-              symbol: "USDC",
-              name: "USD Coin",
-              balance: "0.00", // Will be fetched
-              value: "0.00", // Will be calculated
-              change24h: prices["usd-coin"]?.usd_24h_change || 0,
-              logo: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png?v=025",
-              address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-              decimals: 6,
-            },
-            {
-              symbol: "LINK",
-              name: "Chainlink",
-              balance: "0.00", // Will be fetched
-              value: "0.00", // Will be calculated
-              change24h: prices["chainlink"]?.usd_24h_change || 0,
-              logo: "https://cryptologos.cc/logos/chainlink-link-logo.png?v=025",
-              address: "0x514910771AF9Ca656af840dff83E8264EcF986CA",
-              decimals: 18,
-            },
-          ],
+          totalValue: "0.00",
+          assets: [],
         },
         {
           network: "Polygon",
           chainId: 137,
-          totalValue: "0.00", // Will be calculated
-          assets: [
-            {
-              symbol: "MATIC",
-              name: "Polygon",
-              balance: "0.00", // Will be fetched
-              value: "0.00", // Will be calculated
-              change24h: prices["matic-network"]?.usd_24h_change || 0,
-              logo: "https://cryptologos.cc/logos/polygon-matic-logo.png?v=025",
-              address: "0x0000000000000000000000000000000000000000", // Native token
-              decimals: 18,
-            },
-            {
-              symbol: "USDC",
-              name: "USD Coin",
-              balance: "0.00", // Will be fetched
-              value: "0.00", // Will be calculated
-              change24h: prices["usd-coin"]?.usd_24h_change || 0,
-              logo: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png?v=025",
-              address: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
-              decimals: 6,
-            },
-          ],
+          totalValue: "0.00",
+          assets: [],
         },
         {
           network: "Celo",
           chainId: 42220,
-          totalValue: "0.00", // Will be calculated
-          assets: [
-            {
-              symbol: "CELO",
-              name: "Celo",
-              balance: "0.00", // Will be fetched
-              value: "0.00", // Will be calculated
-              change24h: prices["celo"]?.usd_24h_change || 0,
-              logo: "https://cryptologos.cc/logos/celo-celo-logo.png?v=025",
-              address: "0x0000000000000000000000000000000000000000", // Native token
-              decimals: 18,
-            },
-            {
-              symbol: "cUSD",
-              name: "Celo Dollar",
-              balance: "0.00", // Will be fetched
-              value: "0.00", // Will be calculated
-              change24h: 0.01, // Stablecoin
-              logo: "https://cryptologos.cc/logos/celo-dollar-cusd-logo.png?v=025",
-              address: "0x765DE816845861e75A25fCA122bb6898B8B1282a",
-              decimals: 18,
-            },
-          ],
+          totalValue: "0.00",
+          assets: [],
         },
         {
           network: "Rootstock",
           chainId: 30,
-          totalValue: "0.00", // Will be calculated
-          assets: [
-            {
-              symbol: "RBTC",
-              name: "Rootstock Bitcoin",
-              balance: "0.00", // Will be fetched
-              value: "0.00", // Will be calculated
-              change24h: prices["bitcoin"]?.usd_24h_change || 0,
-              logo: "https://cryptologos.cc/logos/rootstock-rsk-logo.png?v=025",
-              address: "0x0000000000000000000000000000000000000000", // Native token
-              decimals: 18,
-            },
-            {
-              symbol: "RIF",
-              name: "RSK Infrastructure Framework",
-              balance: "0.00", // Will be fetched
-              value: "0.00", // Will be calculated
-              change24h: prices["rif-token"]?.usd_24h_change || 0,
-              logo: "https://cryptologos.cc/logos/rif-token-rif-logo.png?v=025",
-              address: "0x2acc95758f8b5f583470ba265eb685a8f45fc9d5",
-              decimals: 18,
-            },
-          ],
+          totalValue: "0.00",
+          assets: [],
         },
       ]
 
-      // If we have a provider, fetch real balances
-      if (provider && address) {
-        try {
-          // Fetch ETH balance
-          try {
-            const ethBalance = await provider.getBalance(address)
-            const ethBalanceFormatted = formatEther(ethBalance)
+      console.log("Using simulated asset data")
 
-            // Update ETH balance in networks
-            networks[0].assets[0].balance = Number.parseFloat(ethBalanceFormatted).toFixed(6)
-
-            // Calculate value
-            const ethPrice = prices["ethereum"]?.usd || 0
-            const ethValue = Number.parseFloat(ethBalanceFormatted) * ethPrice
-            networks[0].assets[0].value = ethValue.toFixed(2)
-
-            // Calculate total value for Ethereum
-            let ethTotalValue = ethValue
-
-            // Try to fetch USDC balance
-            try {
-              const usdcContract = new ethers.Contract(networks[0].assets[1].address, ERC20_ABI, provider)
-
-              const usdcBalance = await usdcContract.balanceOf(address)
-              const usdcBalanceFormatted = formatUnits(usdcBalance, networks[0].assets[1].decimals)
-              networks[0].assets[1].balance = Number.parseFloat(usdcBalanceFormatted).toFixed(2)
-
-              // USDC is ~$1
-              networks[0].assets[1].value = Number.parseFloat(usdcBalanceFormatted).toFixed(2)
-              ethTotalValue += Number(usdcBalanceFormatted)
-            } catch (error) {
-              console.error("Error fetching USDC balance:", error)
-              // Simulate USDC balance
-              const usdcBalance = (Math.random() * 500).toFixed(2)
-              networks[0].assets[1].balance = usdcBalance
-              networks[0].assets[1].value = usdcBalance
-              ethTotalValue += Number(usdcBalance)
-            }
-
-            // Try to fetch LINK balance
-            try {
-              const linkContract = new ethers.Contract(networks[0].assets[2].address, ERC20_ABI, provider)
-
-              const linkBalance = await linkContract.balanceOf(address)
-              const linkBalanceFormatted = formatUnits(linkBalance, networks[0].assets[2].decimals)
-              networks[0].assets[2].balance = Number.parseFloat(linkBalanceFormatted).toFixed(6)
-
-              const linkPrice = prices["chainlink"]?.usd || 0
-              const linkValue = Number(linkBalanceFormatted) * linkPrice
-              networks[0].assets[2].value = linkValue.toFixed(2)
-              ethTotalValue += linkValue
-            } catch (error) {
-              console.error("Error fetching LINK balance:", error)
-              // Simulate LINK balance
-              const linkBalance = (Math.random() * 50).toFixed(6)
-              networks[0].assets[2].balance = linkBalance
-              const linkPrice = prices["chainlink"]?.usd || 0
-              const linkValue = Number(linkBalance) * linkPrice
-              networks[0].assets[2].value = linkValue.toFixed(2)
-              ethTotalValue += linkValue
-            }
-
-            networks[0].totalValue = ethTotalValue.toFixed(2)
-          } catch (error) {
-            console.error("Error fetching ETH balance:", error)
-            // Use simulated data for ETH
-            simulateEthereumBalances(networks, prices)
-          }
-
-          // Simulate balances for other networks
-          simulateOtherNetworkBalances(networks, prices)
-        } catch (error) {
-          console.error("Error fetching balances:", error)
-          // Fallback to simulated data for all networks
-          simulateAllBalances(networks, prices)
+      // Try to fetch on-chain data for Ethereum if provider is available
+      try {
+        if (provider && address) {
+          await fetchEthereumAssetsOnChain(networks, provider, address)
         }
-      } else {
-        // No provider or address, use simulated data
-        simulateAllBalances(networks, prices)
+      } catch (ethError) {
+        console.error("Error fetching Ethereum assets:", ethError)
+        // Fall back to simulated Ethereum assets
+        await fetchSimulatedEthereumAssets(networks)
       }
+
+      // Use simulated data for other chains
+      await fetchPolygonAssetsOnChain(networks, SIMULATED_PRICES)
+      await fetchCeloAssetsOnChain(networks, SIMULATED_PRICES)
+      await fetchRootstockAssetsOnChain(networks, SIMULATED_PRICES)
+
+      // Ensure each network has at least some assets
+      ensureNetworkAssets(networks)
 
       return networks
     } catch (error) {
-      console.error("Error fetching assets:", error)
-      throw error
+      console.error("Error generating asset data:", error)
+
+      // Return fallback data
+      return getFallbackNetworks()
     }
   },
 }
 
-// Helper function to simulate Ethereum balances
-function simulateEthereumBalances(networks: NetworkAssets[], prices: any) {
-  // Simulate ETH balance
-  networks[0].assets[0].balance = (Math.random() * 2).toFixed(6)
-  const ethPrice = prices["ethereum"]?.usd || 0
-  const ethValue = Number(networks[0].assets[0].balance) * ethPrice
-  networks[0].assets[0].value = ethValue.toFixed(2)
+// Helper function to fetch simulated Ethereum assets
+async function fetchSimulatedEthereumAssets(networks: NetworkAssets[]) {
+  try {
+    // Simulate ETH balance
+    const ethBalanceFormatted = (Math.random() * 2).toFixed(6)
+    const ethPrice = SIMULATED_PRICES["ethereum"]?.usd || 1800
+    let ethValue = Number(Number.parseFloat(ethBalanceFormatted) * ethPrice)
 
-  // Simulate USDC balance
-  networks[0].assets[1].balance = (Math.random() * 500).toFixed(2)
-  networks[0].assets[1].value = networks[0].assets[1].balance // USDC is ~$1
+    // Add ETH to assets
+    networks[0].assets = [
+      {
+        symbol: "ETH",
+        name: "Ethereum",
+        balance: ethBalanceFormatted,
+        value: ethValue.toFixed(2),
+        change24h: SIMULATED_PRICES["ethereum"]?.usd_24h_change || 0,
+        logo: "https://cryptologos.cc/logos/ethereum-eth-logo.png?v=025",
+        address: "0x0000000000000000000000000000000000000000",
+        decimals: 18,
+      },
+    ]
 
-  // Simulate LINK balance
-  networks[0].assets[2].balance = (Math.random() * 50).toFixed(6)
-  const linkPrice = prices["chainlink"]?.usd || 0
-  const linkValue = Number(networks[0].assets[2].balance) * linkPrice
-  networks[0].assets[2].value = linkValue.toFixed(2)
+    // Add USDC
+    const usdcBalanceFormatted = (Math.random() * 1000).toFixed(2)
+    const usdcValue = Number.parseFloat(usdcBalanceFormatted)
 
-  // Calculate total value
-  const totalValue = ethValue + Number(networks[0].assets[1].balance) + linkValue
-  networks[0].totalValue = totalValue.toFixed(2)
+    networks[0].assets.push({
+      symbol: "USDC",
+      name: "USD Coin",
+      balance: usdcBalanceFormatted,
+      value: usdcValue.toFixed(2),
+      change24h: SIMULATED_PRICES["usd-coin"]?.usd_24h_change || 0,
+      logo: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png?v=025",
+      address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      decimals: 6,
+    })
+
+    ethValue += usdcValue
+
+    // Add LINK
+    const linkBalanceFormatted = (Math.random() * 50).toFixed(6)
+    const linkPrice = SIMULATED_PRICES["chainlink"]?.usd || 10
+    const linkValue = Number(Number.parseFloat(linkBalanceFormatted) * linkPrice)
+
+    networks[0].assets.push({
+      symbol: "LINK",
+      name: "Chainlink",
+      balance: linkBalanceFormatted,
+      value: linkValue.toFixed(2),
+      change24h: SIMULATED_PRICES["chainlink"]?.usd_24h_change || 0,
+      logo: "https://cryptologos.cc/logos/chainlink-link-logo.png?v=025",
+      address: "0x514910771AF9Ca656af840dff83E8264EcF986CA",
+      decimals: 18,
+    })
+
+    ethValue += linkValue
+    networks[0].totalValue = ethValue.toFixed(2)
+  } catch (error) {
+    console.error("Error generating simulated Ethereum assets:", error)
+  }
 }
 
-// Helper function to simulate other network balances
-function simulateOtherNetworkBalances(networks: NetworkAssets[], prices: any) {
-  // Simulate Polygon balances
-  networks[1].assets[0].balance = (Math.random() * 100).toFixed(6)
-  const maticPrice = prices["matic-network"]?.usd || 0
-  const maticValue = Number(networks[1].assets[0].balance) * maticPrice
-  networks[1].assets[0].value = maticValue.toFixed(2)
+// Helper function to fetch Ethereum assets on-chain
+async function fetchEthereumAssetsOnChain(networks: NetworkAssets[], provider: any, address: string) {
+  try {
+    // Fetch ETH balance
+    const ethBalance = await provider.getBalance(address)
+    const ethBalanceFormatted = formatEther(ethBalance)
 
-  networks[1].assets[1].balance = (Math.random() * 50).toFixed(6)
-  const polygonUsdcValue = Number(networks[1].assets[1].balance)
-  networks[1].assets[1].value = polygonUsdcValue.toFixed(2)
+    // Use simulated price data instead of fetching
+    const ethPrice = SIMULATED_PRICES["ethereum"]?.usd || 1800
+    let ethValue = Number(Number.parseFloat(ethBalanceFormatted) * ethPrice)
 
-  networks[1].totalValue = (maticValue + polygonUsdcValue).toFixed(2)
+    // Add ETH to assets
+    networks[0].assets = [
+      {
+        symbol: "ETH",
+        name: "Ethereum",
+        balance: Number.parseFloat(ethBalanceFormatted).toFixed(6),
+        value: ethValue.toFixed(2),
+        change24h: SIMULATED_PRICES["ethereum"]?.usd_24h_change || 0,
+        logo: "https://cryptologos.cc/logos/ethereum-eth-logo.png?v=025",
+        address: "0x0000000000000000000000000000000000000000",
+        decimals: 18,
+      },
+    ]
 
-  // Simulate Celo balances
-  networks[2].assets[0].balance = (Math.random() * 20).toFixed(6)
-  const celoPrice = prices["celo"]?.usd || 0
-  const celoValue = Number(networks[2].assets[0].balance) * celoPrice
-  networks[2].assets[0].value = celoValue.toFixed(2)
+    // Try to fetch USDC balance
+    try {
+      const usdcAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+      const usdcContract = new ethers.Contract(usdcAddress, ERC20_ABI, provider)
 
-  networks[2].assets[1].balance = (Math.random() * 30).toFixed(6)
-  const cusdValue = Number(networks[2].assets[1].balance)
-  networks[2].assets[1].value = cusdValue.toFixed(2)
+      const usdcBalance = await usdcContract.balanceOf(address)
+      const usdcBalanceFormatted = formatUnits(usdcBalance, 6)
+      const usdcValue = Number.parseFloat(usdcBalanceFormatted)
 
-  networks[2].totalValue = (celoValue + cusdValue).toFixed(2)
+      networks[0].assets.push({
+        symbol: "USDC",
+        name: "USD Coin",
+        balance: Number.parseFloat(usdcBalanceFormatted).toFixed(2),
+        value: usdcValue.toFixed(2),
+        change24h: SIMULATED_PRICES["usd-coin"]?.usd_24h_change || 0,
+        logo: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png?v=025",
+        address: usdcAddress,
+        decimals: 6,
+      })
 
-  // Simulate Rootstock balances
-  networks[3].assets[0].balance = (Math.random() * 0.05).toFixed(6)
-  const btcPrice = prices["bitcoin"]?.usd || 0
-  const rbtcValue = Number(networks[3].assets[0].balance) * btcPrice
-  networks[3].assets[0].value = rbtcValue.toFixed(2)
+      ethValue += usdcValue
+    } catch (error) {
+      console.error("Error fetching USDC balance:", error)
 
-  networks[3].assets[1].balance = (Math.random() * 100).toFixed(6)
-  const rifPrice = prices["rif-token"]?.usd || 0.1
-  const rifValue = Number(networks[3].assets[1].balance) * rifPrice
-  networks[3].assets[1].value = rifValue.toFixed(2)
+      // Add simulated USDC if fetch fails
+      const usdcBalanceFormatted = (Math.random() * 1000).toFixed(2)
+      const usdcValue = Number.parseFloat(usdcBalanceFormatted)
 
-  networks[3].totalValue = (rbtcValue + rifValue).toFixed(2)
+      networks[0].assets.push({
+        symbol: "USDC",
+        name: "USD Coin",
+        balance: usdcBalanceFormatted,
+        value: usdcValue.toFixed(2),
+        change24h: SIMULATED_PRICES["usd-coin"]?.usd_24h_change || 0,
+        logo: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png?v=025",
+        address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        decimals: 6,
+      })
+
+      ethValue += usdcValue
+    }
+
+    // Try to fetch LINK balance
+    try {
+      const linkAddress = "0x514910771AF9Ca656af840dff83E8264EcF986CA"
+      const linkContract = new ethers.Contract(linkAddress, ERC20_ABI, provider)
+
+      const linkBalance = await linkContract.balanceOf(address)
+      const linkBalanceFormatted = formatUnits(linkBalance, 18)
+      const linkPrice = SIMULATED_PRICES["chainlink"]?.usd || 10
+      const linkValue = Number(Number.parseFloat(linkBalanceFormatted) * linkPrice)
+
+      networks[0].assets.push({
+        symbol: "LINK",
+        name: "Chainlink",
+        balance: Number.parseFloat(linkBalanceFormatted).toFixed(6),
+        value: linkValue.toFixed(2),
+        change24h: SIMULATED_PRICES["chainlink"]?.usd_24h_change || 0,
+        logo: "https://cryptologos.cc/logos/chainlink-link-logo.png?v=025",
+        address: linkAddress,
+        decimals: 18,
+      })
+
+      ethValue += linkValue
+    } catch (error) {
+      console.error("Error fetching LINK balance:", error)
+
+      // Add simulated LINK if fetch fails
+      const linkBalanceFormatted = (Math.random() * 50).toFixed(6)
+      const linkPrice = SIMULATED_PRICES["chainlink"]?.usd || 10
+      const linkValue = Number(Number.parseFloat(linkBalanceFormatted) * linkPrice)
+
+      networks[0].assets.push({
+        symbol: "LINK",
+        name: "Chainlink",
+        balance: linkBalanceFormatted,
+        value: linkValue.toFixed(2),
+        change24h: SIMULATED_PRICES["chainlink"]?.usd_24h_change || 0,
+        logo: "https://cryptologos.cc/logos/chainlink-link-logo.png?v=025",
+        address: "0x514910771AF9Ca656af840dff83E8264EcF986CA",
+        decimals: 18,
+      })
+
+      ethValue += linkValue
+    }
+
+    networks[0].totalValue = ethValue.toFixed(2)
+  } catch (error) {
+    console.error("Error fetching Ethereum assets on-chain:", error)
+    // Fall back to simulated data
+    await fetchSimulatedEthereumAssets(networks)
+  }
 }
 
-// Helper function to simulate all balances
-function simulateAllBalances(networks: NetworkAssets[], prices: any) {
-  simulateEthereumBalances(networks, prices)
-  simulateOtherNetworkBalances(networks, prices)
+// Helper function to fetch Polygon assets
+async function fetchPolygonAssetsOnChain(networks: NetworkAssets[], prices?: any) {
+  try {
+    if (!prices) {
+      prices = SIMULATED_PRICES
+    }
+
+    // Simulate Polygon balances with realistic values
+    const maticBalance = (Math.random() * 100).toFixed(6)
+    const maticPrice = prices["matic-network"]?.usd || 0.65
+    const maticValue = Number(maticBalance) * maticPrice
+
+    networks[1].assets = [
+      {
+        symbol: "MATIC",
+        name: "Polygon",
+        balance: maticBalance,
+        value: maticValue.toFixed(2),
+        change24h: prices["matic-network"]?.usd_24h_change || 0,
+        logo: "https://cryptologos.cc/logos/polygon-matic-logo.png?v=025",
+        address: "0x0000000000000000000000000000000000000000",
+        decimals: 18,
+      },
+      {
+        symbol: "USDC",
+        name: "USD Coin",
+        balance: (Math.random() * 50).toFixed(2),
+        value: (Math.random() * 50).toFixed(2),
+        change24h: prices["usd-coin"]?.usd_24h_change || 0,
+        logo: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png?v=025",
+        address: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+        decimals: 6,
+      },
+    ]
+
+    const totalValue = maticValue + Number(networks[1].assets[1].value)
+    networks[1].totalValue = totalValue.toFixed(2)
+  } catch (error) {
+    console.error("Error fetching Polygon assets:", error)
+  }
+}
+
+// Helper function to fetch Celo assets
+async function fetchCeloAssetsOnChain(networks: NetworkAssets[], prices?: any) {
+  try {
+    if (!prices) {
+      prices = SIMULATED_PRICES
+    }
+
+    // Simulate Celo balances with realistic values
+    const celoBalance = (Math.random() * 20).toFixed(6)
+    const celoPrice = prices["celo"]?.usd || 0.48
+    const celoValue = Number(celoBalance) * celoPrice
+
+    networks[2].assets = [
+      {
+        symbol: "CELO",
+        name: "Celo",
+        balance: celoBalance,
+        value: celoValue.toFixed(2),
+        change24h: prices["celo"]?.usd_24h_change || 0,
+        logo: "https://cryptologos.cc/logos/celo-celo-logo.png?v=025",
+        address: "0x0000000000000000000000000000000000000000",
+        decimals: 18,
+      },
+      {
+        symbol: "cUSD",
+        name: "Celo Dollar",
+        balance: (Math.random() * 30).toFixed(2),
+        value: (Math.random() * 30).toFixed(2),
+        change24h: 0.01, // Stablecoin
+        logo: "https://cryptologos.cc/logos/celo-dollar-cusd-logo.png?v=025",
+        address: "0x765DE816845861e75A25fCA122bb6898B8B1282a",
+        decimals: 18,
+      },
+    ]
+
+    const totalValue = celoValue + Number(networks[2].assets[1].value)
+    networks[2].totalValue = totalValue.toFixed(2)
+  } catch (error) {
+    console.error("Error fetching Celo assets:", error)
+  }
+}
+
+// Helper function to fetch Rootstock assets
+async function fetchRootstockAssetsOnChain(networks: NetworkAssets[], prices?: any) {
+  try {
+    if (!prices) {
+      prices = SIMULATED_PRICES
+    }
+
+    // Simulate Rootstock balances with realistic values
+    const rbtcBalance = (Math.random() * 0.05).toFixed(6)
+    const btcPrice = prices["bitcoin"]?.usd || 52000
+    const rbtcValue = Number(rbtcBalance) * btcPrice
+
+    const rifBalance = (Math.random() * 100).toFixed(6)
+    const rifPrice = prices["rif-token"]?.usd || 0.12
+    const rifValue = Number(rifBalance) * rifPrice
+
+    networks[3].assets = [
+      {
+        symbol: "RBTC",
+        name: "Rootstock Bitcoin",
+        balance: rbtcBalance,
+        value: rbtcValue.toFixed(2),
+        change24h: prices["bitcoin"]?.usd_24h_change || 0,
+        logo: "https://cryptologos.cc/logos/rootstock-rsk-logo.png?v=025",
+        address: "0x0000000000000000000000000000000000000000",
+        decimals: 18,
+      },
+      {
+        symbol: "RIF",
+        name: "RSK Infrastructure Framework",
+        balance: rifBalance,
+        value: rifValue.toFixed(2),
+        change24h: prices["rif-token"]?.usd_24h_change || 0,
+        logo: "https://cryptologos.cc/logos/rif-token-rif-logo.png?v=025",
+        address: "0x2acc95758f8b5f583470ba265eb685a8f45fc9d5",
+        decimals: 18,
+      },
+    ]
+
+    networks[3].totalValue = (rbtcValue + rifValue).toFixed(2)
+  } catch (error) {
+    console.error("Error fetching Rootstock assets:", error)
+  }
+}
+
+// Helper function to ensure each network has at least some assets
+function ensureNetworkAssets(networks: NetworkAssets[]) {
+  networks.forEach((network, index) => {
+    if (!network.assets || network.assets.length === 0) {
+      switch (index) {
+        case 0: // Ethereum
+          network.assets = [
+            {
+              symbol: "ETH",
+              name: "Ethereum",
+              balance: "0.00",
+              value: "0.00",
+              change24h: 0,
+              logo: "https://cryptologos.cc/logos/ethereum-eth-logo.png?v=025",
+              address: "0x0000000000000000000000000000000000000000",
+              decimals: 18,
+            },
+          ]
+          break
+        case 1: // Polygon
+          network.assets = [
+            {
+              symbol: "MATIC",
+              name: "Polygon",
+              balance: "0.00",
+              value: "0.00",
+              change24h: 0,
+              logo: "https://cryptologos.cc/logos/polygon-matic-logo.png?v=025",
+              address: "0x0000000000000000000000000000000000000000",
+              decimals: 18,
+            },
+          ]
+          break
+        case 2: // Celo
+          network.assets = [
+            {
+              symbol: "CELO",
+              name: "Celo",
+              balance: "0.00",
+              value: "0.00",
+              change24h: 0,
+              logo: "https://cryptologos.cc/logos/celo-celo-logo.png?v=025",
+              address: "0x0000000000000000000000000000000000000000",
+              decimals: 18,
+            },
+          ]
+          break
+        case 3: // Rootstock
+          network.assets = [
+            {
+              symbol: "RBTC",
+              name: "Rootstock Bitcoin",
+              balance: "0.00",
+              value: "0.00",
+              change24h: 0,
+              logo: "https://cryptologos.cc/logos/rootstock-rsk-logo.png?v=025",
+              address: "0x0000000000000000000000000000000000000000",
+              decimals: 18,
+            },
+          ]
+          break
+      }
+    }
+  })
+}
+
+// Helper function to get fallback networks data
+function getFallbackNetworks(): NetworkAssets[] {
+  return [
+    {
+      network: "Ethereum",
+      chainId: 1,
+      totalValue: "0.00",
+      assets: [
+        {
+          symbol: "ETH",
+          name: "Ethereum",
+          balance: "0.00",
+          value: "0.00",
+          change24h: 0,
+          logo: "https://cryptologos.cc/logos/ethereum-eth-logo.png?v=025",
+          address: "0x0000000000000000000000000000000000000000",
+          decimals: 18,
+        },
+      ],
+    },
+    {
+      network: "Polygon",
+      chainId: 137,
+      totalValue: "0.00",
+      assets: [
+        {
+          symbol: "MATIC",
+          name: "Polygon",
+          balance: "0.00",
+          value: "0.00",
+          change24h: 0,
+          logo: "https://cryptologos.cc/logos/polygon-matic-logo.png?v=025",
+          address: "0x0000000000000000000000000000000000000000",
+          decimals: 18,
+        },
+      ],
+    },
+    {
+      network: "Celo",
+      chainId: 42220,
+      totalValue: "0.00",
+      assets: [
+        {
+          symbol: "CELO",
+          name: "Celo",
+          balance: "0.00",
+          value: "0.00",
+          change24h: 0,
+          logo: "https://cryptologos.cc/logos/celo-celo-logo.png?v=025",
+          address: "0x0000000000000000000000000000000000000000",
+          decimals: 18,
+        },
+      ],
+    },
+    {
+      network: "Rootstock",
+      chainId: 30,
+      totalValue: "0.00",
+      assets: [
+        {
+          symbol: "RBTC",
+          name: "Rootstock Bitcoin",
+          balance: "0.00",
+          value: "0.00",
+          change24h: 0,
+          logo: "https://cryptologos.cc/logos/rootstock-rsk-logo.png?v=025",
+          address: "0x0000000000000000000000000000000000000000",
+          decimals: 18,
+        },
+      ],
+    },
+  ]
 }
 
 export function AssetList({ isVerified }: AssetListProps) {
@@ -389,6 +635,7 @@ export function AssetList({ isVerified }: AssetListProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [assets, setAssets] = useState<NetworkAssets[]>([])
   const [totalValue, setTotalValue] = useState("0.00")
+  const [activeTab, setActiveTab] = useState<string | null>(null)
 
   // Fetch assets from Nodit API
   useEffect(() => {
@@ -398,9 +645,14 @@ export function AssetList({ isVerified }: AssetListProps) {
       setIsLoading(true)
 
       try {
-        // Get assets with real on-chain data
+        // Get assets with simulated data
         const assetData = await NoditClient.getAssets(address, provider, ensName)
         setAssets(assetData)
+
+        // Set active tab to the first network
+        if (assetData.length > 0 && !activeTab) {
+          setActiveTab(assetData[0].network.toLowerCase())
+        }
 
         // Calculate total value across all networks
         const totalValueSum = assetData.reduce((sum, network) => {
@@ -411,10 +663,18 @@ export function AssetList({ isVerified }: AssetListProps) {
       } catch (error) {
         console.error("Error fetching assets:", error)
         toast({
-          title: "Error fetching assets",
-          description: "Could not load your assets. Please try again later.",
-          variant: "destructive",
+          title: "Using simulated data",
+          description: "Displaying demo asset data for this preview",
+          variant: "default",
         })
+
+        // Set fallback data
+        const fallbackData = getFallbackNetworks()
+        setAssets(fallbackData)
+
+        if (fallbackData.length > 0 && !activeTab) {
+          setActiveTab(fallbackData[0].network.toLowerCase())
+        }
       } finally {
         setIsLoading(false)
       }
@@ -423,7 +683,7 @@ export function AssetList({ isVerified }: AssetListProps) {
     if (isConnected) {
       fetchAssets()
     }
-  }, [address, provider, isConnected, ensName])
+  }, [address, provider, isConnected, ensName, activeTab])
 
   const refreshAssets = async () => {
     if (!address) return
@@ -431,7 +691,7 @@ export function AssetList({ isVerified }: AssetListProps) {
     setIsLoading(true)
 
     try {
-      // Re-fetch assets with real on-chain data
+      // Re-fetch assets with simulated data
       const assetData = await NoditClient.getAssets(address, provider, ensName)
       setAssets(assetData)
 
@@ -450,8 +710,8 @@ export function AssetList({ isVerified }: AssetListProps) {
       console.error("Error refreshing assets:", error)
       toast({
         title: "Error refreshing assets",
-        description: "Could not refresh your assets. Please try again later.",
-        variant: "destructive",
+        description: "Using simulated data for demonstration",
+        variant: "default",
       })
     } finally {
       setIsLoading(false)
@@ -459,27 +719,52 @@ export function AssetList({ isVerified }: AssetListProps) {
   }
 
   return (
-    <Card className="border-none shadow-lg overflow-hidden bg-white dark:bg-black/20 backdrop-blur-sm">
-      <CardHeader className="bg-gradient-to-r from-purple-100 to-cyan-100 dark:from-purple-950/30 dark:to-cyan-950/30 flex flex-row items-center justify-between">
-        <div>
-          <CardTitle className="flex items-center gap-2">
-            <Wallet className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-            Identifi Cross-Chain Wallet
-          </CardTitle>
-          <CardDescription>Powered by Nodit API</CardDescription>
+    <Card className="border-none shadow-xl overflow-hidden bg-white/80 dark:bg-black/40 backdrop-blur-md relative">
+      {/* Decorative elements */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-gradient-to-br from-purple-500/10 to-cyan-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-1/4 h-1/4 bg-gradient-to-tr from-purple-500/10 to-cyan-500/10 rounded-full blur-3xl"></div>
+      </div>
+
+      <CardHeader className="bg-gradient-to-r from-purple-100/80 to-cyan-100/80 dark:from-purple-950/50 dark:to-cyan-950/50 relative z-10">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+              <span className="relative text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-cyan-600 font-bold">
+                Identifi Cross-Chain Wallet
+                <span className="absolute -top-1 -right-6">
+                  <Sparkles className="h-4 w-4 text-amber-500 animate-pulse" />
+                </span>
+              </span>
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <CardDescription className="text-muted-foreground/80">Simulated Data</CardDescription>
+              <Badge
+                variant="outline"
+                className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30"
+              >
+                Demo Mode
+              </Badge>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={refreshAssets}
+            disabled={isLoading}
+            className="relative overflow-hidden group rounded-full hover:bg-gradient-to-r hover:from-purple-100 hover:to-cyan-100 dark:hover:from-purple-900/30 dark:hover:to-cyan-900/30 transition-all duration-300"
+          >
+            <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-purple-500/5 to-cyan-500/5 group-hover:opacity-100 opacity-0 transition-opacity duration-300"></div>
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 group-hover:rotate-180 transition-transform duration-500" />
+            )}
+          </Button>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={refreshAssets}
-          disabled={isLoading}
-          className="relative overflow-hidden group"
-        >
-          <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-purple-500/5 to-cyan-500/5 group-hover:opacity-100 opacity-0 transition-opacity duration-300"></div>
-          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-        </Button>
       </CardHeader>
-      <CardContent className="p-6">
+      <CardContent className="p-6 relative z-10">
         {isLoading ? (
           <div className="space-y-4">
             <Skeleton className="h-10 w-full" />
@@ -502,10 +787,14 @@ export function AssetList({ isVerified }: AssetListProps) {
             </div>
           </div>
         ) : (
-          <Tabs defaultValue={assets[0]?.network.toLowerCase()}>
-            <TabsList className="mb-4 w-full justify-start overflow-auto">
+          <Tabs defaultValue={activeTab || assets[0]?.network.toLowerCase()} onValueChange={setActiveTab}>
+            <TabsList className="mb-4 w-full justify-start overflow-auto bg-background/50 dark:bg-background/20 p-1 rounded-xl">
               {assets.map((network) => (
-                <TabsTrigger key={network.network} value={network.network.toLowerCase()}>
+                <TabsTrigger
+                  key={network.network}
+                  value={network.network.toLowerCase()}
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500/10 data-[state=active]:to-cyan-500/10 data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 rounded-lg transition-all duration-300"
+                >
                   {network.network}
                 </TabsTrigger>
               ))}
@@ -514,21 +803,25 @@ export function AssetList({ isVerified }: AssetListProps) {
             {assets.map((network) => (
               <TabsContent key={network.network} value={network.network.toLowerCase()}>
                 <div className="space-y-4">
-                  {network.assets.map((asset) => (
+                  {network.assets.map((asset, index) => (
                     <div
                       key={asset.symbol}
-                      className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 dark:hover:bg-muted/20 transition-colors duration-200"
+                      className="flex items-center justify-between p-4 rounded-xl hover:bg-gradient-to-r hover:from-purple-50/50 hover:to-cyan-50/50 dark:hover:from-purple-900/10 dark:hover:to-cyan-900/10 transition-colors duration-300 transform hover:scale-[1.01] hover:shadow-md border border-transparent hover:border-purple-200/50 dark:hover:border-purple-800/20"
+                      style={{
+                        animationDelay: `${index * 100}ms`,
+                        animation: "fadeInUp 0.5s ease-out forwards",
+                      }}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-purple-100 to-cyan-100 dark:from-purple-900/30 dark:to-cyan-900/30 flex items-center justify-center overflow-hidden p-0.5">
                           <img
                             src={asset.logo || "/placeholder.svg?height=40&width=40"}
                             alt={asset.name}
-                            className="h-full w-full object-cover"
+                            className="h-full w-full object-cover rounded-full"
                           />
                         </div>
                         <div>
-                          <div className="font-medium flex items-center gap-2">
+                          <div className="font-medium flex items-center gap-2 text-lg">
                             {asset.symbol}
                             <span className="text-sm font-normal text-muted-foreground">{asset.name}</span>
                           </div>
@@ -549,7 +842,7 @@ export function AssetList({ isVerified }: AssetListProps) {
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="font-medium">{asset.balance}</div>
+                        <div className="font-medium text-lg">{asset.balance}</div>
                         <div className="text-sm text-muted-foreground">${asset.value}</div>
                       </div>
                     </div>
@@ -560,16 +853,13 @@ export function AssetList({ isVerified }: AssetListProps) {
           </Tabs>
         )}
       </CardContent>
-      <CardFooter className="flex justify-between p-6 bg-gradient-to-r from-purple-50 to-cyan-50 dark:from-purple-950/10 dark:to-cyan-950/10">
-        <div>
-          <div className="text-sm font-medium">Total Balance</div>
-          <div className="text-2xl font-bold">${totalValue}</div>
+      <CardFooter className="flex justify-between p-6 bg-gradient-to-r from-purple-50/80 to-cyan-50/80 dark:from-purple-950/30 dark:to-cyan-950/30 relative z-10">
+        <div className="bg-white/50 dark:bg-black/20 backdrop-blur-sm p-4 rounded-xl shadow-sm border border-purple-100/50 dark:border-purple-900/20 w-full">
+          <div className="text-sm font-medium text-muted-foreground">Total Balance</div>
+          <div className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-cyan-600">
+            ${totalValue}
+          </div>
         </div>
-        <Button className="bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 relative overflow-hidden group">
-          <div className="absolute inset-0 w-full h-full bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-          <Wallet className="h-4 w-4 mr-2" />
-          Manage Assets
-        </Button>
       </CardFooter>
     </Card>
   )

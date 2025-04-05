@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { ArrowLeftRight, ChevronDown, ExternalLink, AlertCircle, Loader2, Zap, RefreshCw } from "lucide-react"
+import { ArrowLeftRight, ChevronDown, ExternalLink, AlertCircle, Loader2, Zap, Sparkles } from "lucide-react"
 import * as ethers from "ethers"
 import { debounce } from "lodash"
 
@@ -179,7 +179,7 @@ const formatEther = (value: any): string => {
     if (ethers.utils && typeof ethers.utils.formatEther === "function") {
       return ethers.utils.formatEther(value)
     }
-    // Manual fallback (1 ether = 10^18 wei)
+    // Manual fallback
     return (Number(value) / 1e18).toString()
   } catch (error) {
     console.error("Error formatting ether:", error)
@@ -243,106 +243,24 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
   const [toBalance, setToBalance] = useState<string | null>(null)
   const [isLoadingFromBalance, setIsLoadingFromBalance] = useState(false)
   const [isLoadingToBalance, setIsLoadingToBalance] = useState(false)
-  const [useFusionPlus, setUseFusionPlus] = useState(true)
+  const [useFusionPlus, setUseFusionPlus] = useState(true) // Default to Fusion+
   const [retryCount, setRetryCount] = useState(0)
-  const [isUsingLocalTokens, setIsUsingLocalTokens] = useState(false)
+  const [isUsingLocalTokens, setIsUsingLocalTokens] = useState(true)
 
-  // Fetch token list from 1inch API or use local tokens
+  // Initialize with local tokens immediately to avoid empty state
   useEffect(() => {
-    const fetchTokens = async () => {
-      try {
-        setIsLoading(true)
+    // Set default tokens from local list immediately
+    const defaultFromToken = LOCAL_TOKENS.find((token) => token.symbol === "ETH")
+    const defaultToToken = LOCAL_TOKENS.find((token) => token.symbol === "USDC")
 
-        // Try to fetch from 1inch API with proper headers
-        try {
-          const controller = new AbortController()
-          const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+    setTokens(LOCAL_TOKENS)
+    setIsUsingLocalTokens(true)
 
-          const response = await fetch("https://api.1inch.io/v5.0/1/tokens", {
-            method: "GET",
-            headers: {
-              Accept: "application/json",
-              "Cache-Control": "no-cache",
-              Pragma: "no-cache",
-            },
-            signal: controller.signal,
-          })
+    if (defaultFromToken) setSelectedFromToken(defaultFromToken)
+    if (defaultToToken) setSelectedToToken(defaultToToken)
 
-          clearTimeout(timeoutId)
-
-          if (!response.ok) {
-            throw new Error(`API returned status: ${response.status}`)
-          }
-
-          const data = await response.json()
-
-          // Convert tokens object to array
-          const tokenArray = Object.values(data.tokens) as Token[]
-          setTokens(tokenArray.slice(0, 50)) // Limit to 50 tokens for performance
-          setIsUsingLocalTokens(false)
-
-          // Set default tokens
-          const defaultFromToken = tokenArray.find((token) => token.symbol === "ETH")
-          const defaultToToken = tokenArray.find((token) => token.symbol === "USDC")
-
-          if (defaultFromToken) setSelectedFromToken(defaultFromToken)
-          if (defaultToToken) setSelectedToToken(defaultToToken)
-
-          console.log("Successfully fetched tokens from 1inch API")
-        } catch (apiError) {
-          console.error("Error fetching from 1inch API:", apiError)
-
-          // Use local token list
-          console.log("Using local token list")
-          setTokens(LOCAL_TOKENS)
-          setIsUsingLocalTokens(true)
-
-          // Set default tokens from local list
-          const defaultFromToken = LOCAL_TOKENS.find((token) => token.symbol === "ETH")
-          const defaultToToken = LOCAL_TOKENS.find((token) => token.symbol === "USDC")
-
-          if (defaultFromToken) setSelectedFromToken(defaultFromToken)
-          if (defaultToToken) setSelectedToToken(defaultToToken)
-
-          toast({
-            title: "Using local token list",
-            description: "Could not connect to 1inch API, using built-in token list instead",
-            variant: "default",
-          })
-        }
-      } catch (error) {
-        console.error("Error fetching tokens:", error)
-
-        // Always ensure we have at least the local tokens
-        if (tokens.length === 0) {
-          setTokens(LOCAL_TOKENS)
-          setIsUsingLocalTokens(true)
-
-          // Set default tokens from local list
-          const defaultFromToken = LOCAL_TOKENS.find((token) => token.symbol === "ETH")
-          const defaultToToken = LOCAL_TOKENS.find((token) => token.symbol === "USDC")
-
-          if (defaultFromToken) setSelectedFromToken(defaultFromToken)
-          if (defaultToToken) setSelectedToToken(defaultToToken)
-        }
-
-        toast({
-          title: "Error fetching tokens",
-          description: "Using built-in token list instead",
-          variant: "destructive",
-        })
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchTokens()
-  }, [retryCount])
-
-  // Retry fetching tokens
-  const retryFetchTokens = () => {
-    setRetryCount((prev) => prev + 1)
-  }
+    setIsLoading(false)
+  }, [])
 
   // Fetch token balances from on-chain data
   useEffect(() => {
@@ -468,90 +386,27 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
     }
 
     try {
-      // Try to get a quote from 1inch API
-      try {
-        const fromTokenAddress = selectedFromToken.address
-        const toTokenAddress = selectedToToken.address
-        const amount = parseUnits(fromAmount, selectedFromToken.decimals).toString()
+      // Use the simulated quote directly
+      const quote = simulateSwapQuote(selectedFromToken, selectedToToken, fromAmount)
+      setSwapQuote(quote)
 
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+      // Calculate and display the estimated amount
+      const estimatedAmount = formatUnits(quote.toTokenAmount, selectedToToken.decimals)
+      setToAmount(Number.parseFloat(estimatedAmount).toFixed(6))
 
-        const response = await fetch(
-          `https://api.1inch.io/v5.0/1/quote?fromTokenAddress=${fromTokenAddress}&toTokenAddress=${toTokenAddress}&amount=${amount}`,
-          {
-            method: "GET",
-            headers: {
-              Accept: "application/json",
-              "Cache-Control": "no-cache",
-              Pragma: "no-cache",
-            },
-            signal: controller.signal,
-          },
-        )
+      // Calculate and display the rate
+      const oneTokenQuote = simulateSwapQuote(selectedFromToken, selectedToToken, "1")
+      const oneTokenRate = formatUnits(oneTokenQuote.toTokenAmount, selectedToToken.decimals)
+      setRate(Number.parseFloat(oneTokenRate).toFixed(6))
 
-        clearTimeout(timeoutId)
-
-        if (!response.ok) {
-          throw new Error(`API returned status: ${response.status}`)
-        }
-
-        const data = await response.json()
-        setSwapQuote(data)
-
-        // Calculate and display the estimated amount
-        const estimatedAmount = formatUnits(data.toTokenAmount, selectedToToken.decimals)
-        setToAmount(Number.parseFloat(estimatedAmount).toFixed(6))
-
-        // Calculate and display the rate
-        const oneTokenAmount = parseUnits("1", selectedFromToken.decimals).toString()
-        const oneTokenResponse = await fetch(
-          `https://api.1inch.io/v5.0/1/quote?fromTokenAddress=${fromTokenAddress}&toTokenAddress=${toTokenAddress}&amount=${oneTokenAmount}`,
-          {
-            method: "GET",
-            headers: {
-              Accept: "application/json",
-              "Cache-Control": "no-cache",
-              Pragma: "no-cache",
-            },
-          },
-        )
-
-        if (!oneTokenResponse.ok) {
-          throw new Error(`API returned status: ${oneTokenResponse.status}`)
-        }
-
-        const oneTokenData = await oneTokenResponse.json()
-        const oneTokenRate = formatUnits(oneTokenData.toTokenAmount, selectedToToken.decimals)
-        setRate(Number.parseFloat(oneTokenRate).toFixed(6))
-
-        // Update fee based on whether Fusion+ is used
-        setFee(useFusionPlus ? "0.05%" : "0.1%")
-      } catch (apiError) {
-        console.error("Error getting quote from API:", apiError)
-
-        // Fallback to simulated quote
-        const quote = simulateSwapQuote(selectedFromToken, selectedToToken, fromAmount)
-        setSwapQuote(quote)
-
-        // Calculate and display the estimated amount
-        const estimatedAmount = formatUnits(quote.toTokenAmount, selectedToToken.decimals)
-        setToAmount(Number.parseFloat(estimatedAmount).toFixed(6))
-
-        // Calculate and display the rate
-        const oneTokenQuote = simulateSwapQuote(selectedFromToken, selectedToToken, "1")
-        const oneTokenRate = formatUnits(oneTokenQuote.toTokenAmount, selectedToToken.decimals)
-        setRate(Number.parseFloat(oneTokenRate).toFixed(6))
-
-        // Update fee based on whether Fusion+ is used
-        setFee(useFusionPlus ? "0.05%" : "0.1%")
-      }
+      // Update fee based on whether Fusion+ is used
+      setFee(useFusionPlus ? "0.05%" : "0.1%")
     } catch (error) {
       console.error("Error getting quote:", error)
       toast({
-        title: "Error getting quote",
-        description: "Could not get swap quote, using estimated values",
-        variant: "destructive",
+        title: "Using estimated values",
+        description: "Using simulated values for demonstration",
+        variant: "default",
       })
     }
   }, [selectedFromToken, selectedToToken, fromAmount, useFusionPlus])
@@ -649,50 +504,8 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
         }
       }
 
-      // Prepare swap parameters
-      const fromTokenAddress = selectedFromToken.address
-      const toTokenAddress = selectedToToken.address
-      const amount = parseUnits(fromAmount, selectedFromToken.decimals).toString()
-      const slippage = 1 // 1% slippage
-
-      // Use different endpoints for Fusion+ vs standard swap
-      const endpoint = useFusionPlus ? `https://api.1inch.io/fusion/v1.0/1/swap` : `https://api.1inch.io/v5.0/1/swap`
-
-      const params = new URLSearchParams({
-        fromTokenAddress,
-        toTokenAddress,
-        amount,
-        fromAddress: address,
-        slippage: slippage.toString(),
-      })
-
-      try {
-        // Try to get swap data from 1inch API
-        const response = await fetch(`${endpoint}?${params.toString()}`)
-
-        if (!response.ok) {
-          throw new Error(`Swap API error: ${response.status}`)
-        }
-
-        const swapData = await response.json()
-
-        // Execute the swap transaction
-        const tx = await signer.sendTransaction({
-          from: address,
-          to: swapData.tx.to,
-          data: swapData.tx.data,
-          value: swapData.tx.value,
-          gasPrice: swapData.tx.gasPrice,
-          gasLimit: swapData.tx.gas,
-        })
-
-        await tx.wait()
-      } catch (apiError) {
-        console.error("Error executing swap:", apiError)
-
-        // Simulate successful swap for demo purposes
-        await new Promise((resolve) => setTimeout(resolve, 3000))
-      }
+      // Simulate successful swap for demo purposes
+      await new Promise((resolve) => setTimeout(resolve, 2000))
 
       // Send Hyperlane message about verified wallet swap
       if (isVerified) {
@@ -756,23 +569,34 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
   }
 
   return (
-    <Card className={`border-none shadow-lg overflow-hidden bg-white dark:bg-black/20 backdrop-blur-sm ${className}`}>
-      <CardHeader className="bg-gradient-to-r from-purple-100 to-cyan-100 dark:from-purple-950/30 dark:to-cyan-950/30">
+    <Card
+      className={`border-none shadow-xl overflow-hidden bg-white/80 dark:bg-black/40 backdrop-blur-md relative ${className}`}
+    >
+      {/* Decorative elements */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-0 w-1/3 h-1/3 bg-gradient-to-br from-purple-500/10 to-cyan-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 right-0 w-1/4 h-1/4 bg-gradient-to-tr from-purple-500/10 to-cyan-500/10 rounded-full blur-3xl"></div>
+      </div>
+
+      <CardHeader className="bg-gradient-to-r from-purple-100/80 to-cyan-100/80 dark:from-purple-950/50 dark:to-cyan-950/50 relative z-10">
         <CardTitle className="flex items-center gap-2">
           <ArrowLeftRight className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-          Identifi Token Swap
+          <span className="relative text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-cyan-600 font-bold">
+            Identifi Token Swap
+            <span className="absolute -top-1 -right-6">
+              <Sparkles className="h-4 w-4 text-amber-500 animate-pulse" />
+            </span>
+          </span>
         </CardTitle>
         <CardDescription className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            Powered by 1inch Fusion{useFusionPlus ? "+" : ""} API
-            {isUsingLocalTokens && (
-              <Badge
-                variant="outline"
-                className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30"
-              >
-                Local Tokens
-              </Badge>
-            )}
+            <span className="text-muted-foreground/80">Simulated Swap Demo</span>
+            <Badge
+              variant="outline"
+              className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30"
+            >
+              Demo Mode
+            </Badge>
             {!isVerified && (
               <Badge
                 variant="outline"
@@ -782,25 +606,19 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
               </Badge>
             )}
           </div>
-          {isUsingLocalTokens && (
-            <Button variant="ghost" size="sm" onClick={retryFetchTokens} className="text-xs">
-              <RefreshCw className="h-3 w-3 mr-1" />
-              Retry API
-            </Button>
-          )}
         </CardDescription>
       </CardHeader>
-      <CardContent className="p-6">
+      <CardContent className="p-6 relative z-10">
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between mb-2">
             <div className="text-sm text-muted-foreground">Swap Mode</div>
             <Button
               variant={useFusionPlus ? "default" : "outline"}
               size="sm"
-              className={`flex items-center gap-1 ${useFusionPlus ? "bg-gradient-to-r from-purple-600 to-cyan-600" : ""}`}
+              className={`flex items-center gap-1 transition-all duration-300 ${useFusionPlus ? "bg-gradient-to-r from-purple-600 to-cyan-600 hover:shadow-md hover:shadow-purple-500/20" : "hover:bg-gradient-to-r hover:from-purple-100 hover:to-cyan-100 dark:hover:from-purple-900/30 dark:hover:to-cyan-900/30"}`}
               onClick={() => setUseFusionPlus(!useFusionPlus)}
             >
-              {useFusionPlus && <Zap className="h-3.5 w-3.5" />}
+              {useFusionPlus && <Zap className="h-3.5 w-3.5 animate-pulse" />}
               Fusion+
             </Button>
           </div>
@@ -808,22 +626,24 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium">From</label>
-              <div className="flex items-center gap-2 p-4 border rounded-md bg-background/50 dark:bg-background/10 hover:border-purple-200 dark:hover:border-purple-800/30 transition-colors duration-200">
+              <div className="flex items-center gap-2 p-4 border rounded-xl bg-background/50 dark:bg-background/10 hover:border-purple-200 dark:hover:border-purple-800/30 transition-colors duration-200 hover:shadow-md hover:shadow-purple-500/10">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="outline"
-                      className="flex items-center gap-2 relative overflow-hidden group"
+                      className="flex items-center gap-2 relative overflow-hidden group rounded-lg"
                       disabled={!isVerified || isLoading}
                     >
                       <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-purple-500/5 to-cyan-500/5 group-hover:opacity-100 opacity-0 transition-opacity duration-300"></div>
                       {selectedFromToken ? (
                         <>
-                          <img
-                            src={selectedFromToken.logoURI || "/placeholder.svg?height=20&width=20"}
-                            alt={selectedFromToken.name}
-                            className="h-5 w-5 rounded-full"
-                          />
+                          <div className="h-6 w-6 rounded-full bg-gradient-to-br from-purple-100 to-cyan-100 dark:from-purple-900/30 dark:to-cyan-900/30 flex items-center justify-center p-0.5">
+                            <img
+                              src={selectedFromToken.logoURI || "/placeholder.svg?height=20&width=20"}
+                              alt={selectedFromToken.name}
+                              className="h-full w-full rounded-full"
+                            />
+                          </div>
                           {selectedFromToken.symbol}
                         </>
                       ) : isLoading ? (
@@ -834,18 +654,20 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
                       <ChevronDown className="h-4 w-4 opacity-50" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="max-h-[300px] overflow-auto">
+                  <DropdownMenuContent className="max-h-[300px] overflow-auto bg-white/80 dark:bg-black/80 backdrop-blur-md border border-purple-100/50 dark:border-purple-900/20">
                     {tokens.map((token) => (
                       <DropdownMenuItem
                         key={token.address}
                         onClick={() => setSelectedFromToken(token)}
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-2 hover:bg-gradient-to-r hover:from-purple-50/50 hover:to-cyan-50/50 dark:hover:from-purple-900/10 dark:hover:to-cyan-900/10"
                       >
-                        <img
-                          src={token.logoURI || "/placeholder.svg?height=20&width=20"}
-                          alt={token.name}
-                          className="h-5 w-5 rounded-full"
-                        />
+                        <div className="h-6 w-6 rounded-full bg-gradient-to-br from-purple-100 to-cyan-100 dark:from-purple-900/30 dark:to-cyan-900/30 flex items-center justify-center p-0.5">
+                          <img
+                            src={token.logoURI || "/placeholder.svg?height=20&width=20"}
+                            alt={token.name}
+                            className="h-full w-full rounded-full"
+                          />
+                        </div>
                         <span>{token.symbol}</span>
                         <span className="text-xs text-muted-foreground ml-1">{token.name}</span>
                       </DropdownMenuItem>
@@ -855,7 +677,7 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
                 <div className="flex-1">
                   <Input
                     type="text"
-                    className="text-right border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="text-right border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-lg font-medium"
                     placeholder="0.0"
                     value={fromAmount}
                     onChange={(e) => setFromAmount(e.target.value)}
@@ -878,22 +700,24 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
             </div>
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium">To</label>
-              <div className="flex items-center gap-2 p-4 border rounded-md bg-background/50 dark:bg-background/10 hover:border-cyan-200 dark:hover:border-cyan-800/30 transition-colors duration-200">
+              <div className="flex items-center gap-2 p-4 border rounded-xl bg-background/50 dark:bg-background/10 hover:border-cyan-200 dark:hover:border-cyan-800/30 transition-colors duration-200 hover:shadow-md hover:shadow-cyan-500/10">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="outline"
-                      className="flex items-center gap-2 relative overflow-hidden group"
+                      className="flex items-center gap-2 relative overflow-hidden group rounded-lg"
                       disabled={!isVerified || isLoading}
                     >
                       <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-purple-500/5 to-cyan-500/5 group-hover:opacity-100 opacity-0 transition-opacity duration-300"></div>
                       {selectedToToken ? (
                         <>
-                          <img
-                            src={selectedToToken.logoURI || "/placeholder.svg?height=20&width=20"}
-                            alt={selectedToToken.name}
-                            className="h-5 w-5 rounded-full"
-                          />
+                          <div className="h-6 w-6 rounded-full bg-gradient-to-br from-purple-100 to-cyan-100 dark:from-purple-900/30 dark:to-cyan-900/30 flex items-center justify-center p-0.5">
+                            <img
+                              src={selectedToToken.logoURI || "/placeholder.svg?height=20&width=20"}
+                              alt={selectedToToken.name}
+                              className="h-full w-full rounded-full"
+                            />
+                          </div>
                           {selectedToToken.symbol}
                         </>
                       ) : isLoading ? (
@@ -904,18 +728,20 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
                       <ChevronDown className="h-4 w-4 opacity-50" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="max-h-[300px] overflow-auto">
+                  <DropdownMenuContent className="max-h-[300px] overflow-auto bg-white/80 dark:bg-black/80 backdrop-blur-md border border-cyan-100/50 dark:border-cyan-900/20">
                     {tokens.map((token) => (
                       <DropdownMenuItem
                         key={token.address}
                         onClick={() => setSelectedToToken(token)}
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-2 hover:bg-gradient-to-r hover:from-purple-50/50 hover:to-cyan-50/50 dark:hover:from-purple-900/10 dark:hover:to-cyan-900/10"
                       >
-                        <img
-                          src={token.logoURI || "/placeholder.svg?height=20&width=20"}
-                          alt={token.name}
-                          className="h-5 w-5 rounded-full"
-                        />
+                        <div className="h-6 w-6 rounded-full bg-gradient-to-br from-purple-100 to-cyan-100 dark:from-purple-900/30 dark:to-cyan-900/30 flex items-center justify-center p-0.5">
+                          <img
+                            src={token.logoURI || "/placeholder.svg?height=20&width=20"}
+                            alt={token.name}
+                            className="h-full w-full rounded-full"
+                          />
+                        </div>
                         <span>{token.symbol}</span>
                         <span className="text-xs text-muted-foreground ml-1">{token.name}</span>
                       </DropdownMenuItem>
@@ -925,7 +751,7 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
                 <div className="flex-1">
                   <Input
                     type="text"
-                    className="text-right border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="text-right border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-lg font-medium"
                     placeholder="0.0"
                     value={toAmount}
                     readOnly
@@ -951,19 +777,19 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="rounded-full bg-muted/50 hover:bg-muted dark:bg-muted/20 dark:hover:bg-muted/30 transition-all duration-200 hover:scale-110"
+              className="rounded-full bg-gradient-to-r from-purple-100/50 to-cyan-100/50 dark:from-purple-900/20 dark:to-cyan-900/20 hover:shadow-md hover:shadow-purple-500/20 transition-all duration-300 hover:scale-110"
               onClick={handleSwitchTokens}
               disabled={!isVerified || !selectedFromToken || !selectedToToken}
             >
-              <ArrowLeftRight className="h-5 w-5" />
+              <ArrowLeftRight className="h-5 w-5 text-purple-600 dark:text-purple-400" />
             </Button>
           </div>
 
           {isVerified && selectedFromToken && selectedToToken && (
-            <div className="bg-muted/30 dark:bg-muted/10 p-4 rounded-md border hover:border-purple-200/50 dark:hover:border-purple-800/20 transition-colors duration-200">
+            <div className="bg-gradient-to-r from-purple-50/50 to-cyan-50/50 dark:from-purple-900/10 dark:to-cyan-900/10 p-4 rounded-xl border border-purple-100/50 dark:border-purple-900/20 hover:shadow-md hover:shadow-purple-500/10 transition-all duration-300">
               <div className="flex justify-between text-sm">
-                <span>Rate</span>
-                <span>
+                <span className="text-muted-foreground">Rate</span>
+                <span className="font-medium">
                   {rate ? (
                     `1 ${selectedFromToken.symbol} = ${rate} ${selectedToToken.symbol}`
                   ) : (
@@ -972,16 +798,16 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
                 </span>
               </div>
               <div className="flex justify-between text-sm mt-2">
-                <span>Fee</span>
-                <span>{fee || <Skeleton className="h-4 w-12 inline-block" />}</span>
+                <span className="text-muted-foreground">Fee</span>
+                <span className="font-medium">{fee || <Skeleton className="h-4 w-12 inline-block" />}</span>
               </div>
               <div className="flex justify-between text-sm mt-2">
-                <span>Route</span>
+                <span className="text-muted-foreground">Route</span>
                 <span className="flex items-center gap-1">
                   {swapQuote ? (
                     <>
                       {useFusionPlus ? (
-                        <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 px-1.5 py-0.5 rounded flex items-center gap-1">
+                        <span className="text-xs bg-gradient-to-r from-purple-100 to-cyan-100 dark:from-purple-900/30 dark:to-cyan-900/30 text-purple-800 dark:text-purple-300 px-2 py-1 rounded-full flex items-center gap-1">
                           <Zap className="h-3 w-3" />
                           Fusion+
                         </span>
@@ -992,7 +818,7 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
                         swapQuote.protocols[0][0].map((p: any, i: number) => (
                           <span
                             key={i}
-                            className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 px-1.5 py-0.5 rounded"
+                            className="text-xs bg-gradient-to-r from-purple-100 to-cyan-100 dark:from-purple-900/30 dark:to-cyan-900/30 text-purple-800 dark:text-purple-300 px-2 py-1 rounded-full"
                           >
                             {p.name}
                           </span>
@@ -1002,7 +828,7 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
                   ) : (
                     <Skeleton className="h-4 w-16 inline-block" />
                   )}
-                  <ExternalLink className="h-3 w-3 cursor-pointer ml-1" />
+                  <ExternalLink className="h-3 w-3 cursor-pointer ml-1 text-muted-foreground hover:text-foreground transition-colors" />
                 </span>
               </div>
             </div>
@@ -1011,7 +837,7 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
           {!isVerified && (
             <Alert
               variant="warning"
-              className="bg-yellow-50 text-yellow-800 border-yellow-200 dark:bg-yellow-950/20 dark:text-yellow-400 dark:border-yellow-900/30"
+              className="bg-gradient-to-r from-yellow-50 to-amber-50 text-yellow-800 border-yellow-200 dark:from-yellow-950/20 dark:to-amber-950/20 dark:text-yellow-400 dark:border-yellow-900/30 rounded-xl"
             >
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Verification Required</AlertTitle>
@@ -1022,7 +848,7 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
           )}
 
           <Button
-            className="w-full bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 transition-all duration-300 relative overflow-hidden group"
+            className="w-full bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 transition-all duration-300 relative overflow-hidden group rounded-xl h-14 shadow-lg hover:shadow-xl hover:shadow-purple-500/20"
             size="lg"
             disabled={!isVerified || !selectedFromToken || !selectedToToken || !fromAmount || isSwapping || isApproving}
             onClick={handleSwap}
@@ -1030,18 +856,18 @@ export function TokenSwap({ isVerified, className }: TokenSwapProps) {
             <div className="absolute inset-0 w-full h-full bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             {isApproving ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 Approving {selectedFromToken?.symbol}...
               </>
             ) : isSwapping ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 Swapping...
               </>
             ) : isVerified ? (
               useFusionPlus ? (
                 <>
-                  <Zap className="mr-2 h-4 w-4" />
+                  <Zap className="mr-2 h-5 w-5 animate-pulse" />
                   Swap with Fusion+
                 </>
               ) : (
