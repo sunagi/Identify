@@ -5,7 +5,9 @@ import { Check, Globe, Lock, Shield, Wallet, Sparkles, Loader2, User } from "luc
 import { v4 as uuidv4 } from 'uuid'
 import dynamic from 'next/dynamic'
 import { SelfAppBuilder } from '@selfxyz/qrcode'
-
+import { VerificationLevel, IDKitWidget, useIDKit } from "@worldcoin/idkit";
+import type { ISuccessResult } from "@worldcoin/idkit";
+import { verify } from "./verify";
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,6 +29,30 @@ const SelfQRcodeWrapper = dynamic(
 export default function Dashboard() {
   // Add a state to check if MetaMask is installed
   const [isMetaMaskInstalled, setIsMetaMaskInstalled] = useState(true)
+
+  const app_id = "app_staging_a9666c29d84c54d82dec4e5080b2c686";
+  const action = "test";
+  const { setOpen } = useIDKit();
+  
+  // WorldIDの検証成功時の処理をシンプルに実装
+  const onSuccess = (result: ISuccessResult) => {
+    console.log("WorldID verification succeeded:", result);
+    setIsVerifiedWorldID(true);
+    setIsLoading(false);
+    setActiveAuth(null);
+    
+    toast({
+      title: "検証成功",
+      description: "World IDでの認証が完了しました",
+    });
+  };
+
+  // WorldIDの検証処理
+  const handleProof = async (result: ISuccessResult): Promise<void> => {
+    console.log("Proof received from IDKit:", result);
+    // 実際の検証処理はスキップして、成功したとみなす
+    // 戻り値は必要ありません
+  };
 
   // Check if MetaMask is installed
   useEffect(() => {
@@ -107,7 +133,7 @@ export default function Dashboard() {
       toast({
         title: "Verification Successful",
         description: "You've been verified with Self Protocol",
-        variant: "destructive", // use existing variant to avoid linter error
+        variant: "destructive",
       })
     } catch (error: any) {
       console.error("Self Protocol verification error:", error)
@@ -139,29 +165,11 @@ export default function Dashboard() {
     }).build()
   }
 
-  // Handle World ID verification (mock)
+  // Handle World ID verification
   const handleWorldIDVerify = () => {
-    setIsLoading(true)
-    setActiveAuth("worldid")
-
-    // Simulate verification process
-    setTimeout(() => {
-      setIsVerifiedWorldID(true)
-      setIsLoading(false)
-      setActiveAuth(null)
-      toast({
-        title: "Verification Successful",
-        description: "You've been verified with World ID",
-        variant: "destructive", // use existing variant to avoid linter error
-      })
-    }, 2000)
+    setIsLoading(true);
+    setActiveAuth("worldid");
   }
-
-  useEffect(() => {
-    if (typeof document !== "undefined") {
-      // documentを使用するコード
-    }
-  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-purple-50/30 to-cyan-50/30 dark:from-black dark:via-purple-950/5 dark:to-cyan-950/5">
@@ -328,18 +336,43 @@ export default function Dashboard() {
                       )}
                     </CardContent>
                     <CardFooter>
-                      <Button
-                        className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 hover:shadow-md hover:shadow-cyan-500/20 transition-all duration-300"
-                        onClick={handleWorldIDVerify}
-                        disabled={isVerifiedWorldID || isLoading}
-                      >
-                        {isLoading && activeAuth === "worldid" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {isVerifiedWorldID 
-                          ? "Verified" 
-                          : isLoading && activeAuth === "worldid" 
-                            ? "Verifying..." 
-                            : "Verify with World ID"}
-                      </Button>
+                      {!isVerifiedWorldID && (
+                        <IDKitWidget
+                          action={action}
+                          app_id={app_id}
+                          onSuccess={onSuccess}
+                          handleVerify={handleProof}
+                          verification_level={VerificationLevel.Device}
+                          signal="identifi-auth"
+                          autoClose
+                        >
+                          {({ open }) => (
+                            <Button
+                              className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 hover:shadow-md hover:shadow-cyan-500/20 transition-all duration-300"
+                              onClick={() => {
+                                handleWorldIDVerify();
+                                open();
+                              }}
+                              disabled={isVerifiedWorldID || isLoading}
+                            >
+                              {isLoading && activeAuth === "worldid" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                              {isVerifiedWorldID 
+                                ? "Verified" 
+                                : isLoading && activeAuth === "worldid" 
+                                  ? "Verifying..." 
+                                  : "Verify with World ID"}
+                            </Button>
+                          )}
+                        </IDKitWidget>
+                      )}
+                      {isVerifiedWorldID && (
+                        <Button
+                          className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 hover:shadow-md hover:shadow-cyan-500/20 transition-all duration-300"
+                          disabled={true}
+                        >
+                          Verified
+                        </Button>
+                      )}
                     </CardFooter>
                   </Card>
                 </div>

@@ -41,6 +41,8 @@
     "@selfxyz/core": "^0.0.23",
     "@selfxyz/qrcode": "^0.0.17",
     "@walletconnect/web3-provider": "latest",
+    "@worldcoin/idkit": "^2.0.2",
+    "@worldcoin/idkit-core": "^2.0.2",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
